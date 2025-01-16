@@ -220,17 +220,6 @@
             }, { onlyOnce: true });
         }
 
-        // Automatically update scores every 30 seconds
-        setInterval(() => {
-            onValue(usersRef, (snapshot) => {
-                const users = snapshot.val();
-                Object.entries(users || {}).forEach(([key, user]) => {
-                    const randomScore = (Math.random() * 0.008 + 0.001).toFixed(3); // Random score between 0.001 and 0.009
-                    updateUserScore(key, parseFloat(randomScore));
-                });
-            });
-        }, 30000);
-
         addUserBtn.addEventListener('click', () => {
             popup.style.display = 'flex';
         });
