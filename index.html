@@ -136,7 +136,6 @@
             <h3>Add User</h3>
             <input type="text" id="userName" placeholder="Enter name">
             <input type="text" id="userImage" placeholder="Enter image URL">
-            <input type="number" id="initialScore" placeholder="Enter initial score" step="0.01">
             <button id="saveUserBtn">Save</button>
         </div>
     </div>
@@ -178,7 +177,6 @@
         const uploadFileConfirmBtn = document.getElementById('uploadFileConfirmBtn');
         const userNameInput = document.getElementById('userName');
         const userImageInput = document.getElementById('userImage');
-        const initialScoreInput = document.getElementById('initialScore');
         const fileInput = document.getElementById('fileInput');
         const leaderboardList = document.getElementById('leaderboardList');
         const userSelect = document.getElementById('userSelect');
@@ -207,9 +205,9 @@
             });
         }
 
-        function addUser(name, image, score) {
+        function addUser(name, image) {
             const newUserRef = push(usersRef);
-            set(newUserRef, { name, image, score });
+            set(newUserRef, { name, image, score: 0 });
         }
 
         function updateUserScore(userId, scoreToAdd) {
@@ -222,6 +220,17 @@
             }, { onlyOnce: true });
         }
 
+        // Automatically update scores every 30 seconds
+        setInterval(() => {
+            onValue(usersRef, (snapshot) => {
+                const users = snapshot.val();
+                Object.entries(users || {}).forEach(([key, user]) => {
+                    const randomScore = (Math.random() * 0.008 + 0.001).toFixed(3); // Random score between 0.001 and 0.009
+                    updateUserScore(key, parseFloat(randomScore));
+                });
+            });
+        }, 30000);
+
         addUserBtn.addEventListener('click', () => {
             popup.style.display = 'flex';
         });
@@ -229,14 +238,12 @@
         saveUserBtn.addEventListener('click', () => {
             const name = userNameInput.value;
             const image = userImageInput.value;
-            const score = parseFloat(initialScoreInput.value) || 0;
 
             if (name && image) {
-                addUser(name, image, score);
+                addUser(name, image);
                 popup.style.display = 'none';
                 userNameInput.value = '';
                 userImageInput.value = '';
-                initialScoreInput.value = '';
             } else {
                 alert('Please provide both name and image!');
             }
