@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leaderboard System</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #121212;
+            color: white;
+        }
+
+        header {
+            text-align: center;
+            padding: 10px 0;
+            background-color: #1f1f1f;
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .container {
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .leaderboard {
+            margin-top: 20px;
+            border: 1px solid #444;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .leaderboard-header {
+            background-color: #222;
+            padding: 10px;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .leaderboard-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px;
+            border-bottom: 1px solid #333;
+        }
+
+        .leaderboard-item:last-child {
+            border-bottom: none;
+        }
+
+        .leaderboard-item img {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+
+        .leaderboard-item .info {
+            display: flex;
+            align-items: center;
+        }
+
+        .leaderboard-item .score {
+            font-weight: bold;
+        }
+
+        button {
+            background-color: #ff5722;
+            border: none;
+            padding: 10px 20px;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #e64a19;
+        }
+
+        .popup {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            justify-content: center;
+            align-items: center;
+        }
+
+        .popup-content {
+            background: #1f1f1f;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            color: white;
+        }
+
+        .popup-content select, .popup-content input {
+            display: block;
+            width: 80%;
+            margin: 10px auto;
+            padding: 10px;
+            border: 1px solid #444;
+            border-radius: 4px;
+            background: #121212;
+            color: white;
+        }
+
+        .popup-content input[type="file"] {
+            padding: 0;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        Cumilla Zilla School CZS
+    </header>
+
+    <div class="container">
+        <button id="addUserBtn">Add User</button>
+        <button id="uploadFileBtn">Upload File</button>
+        <div class="leaderboard">
+            <div class="leaderboard-header">Leaderboard</div>
+            <div id="leaderboardList"></div>
+        </div>
+    </div>
+
+    <div class="popup" id="popup">
+        <div class="popup-content">
+            <h3>Add User</h3>
+            <input type="text" id="userName" placeholder="Enter name">
+            <input type="text" id="userImage" placeholder="Enter image URL">
+            <input type="number" id="initialScore" placeholder="Enter initial score" step="0.01">
+            <button id="saveUserBtn">Save</button>
+        </div>
+    </div>
+
+    <div class="popup" id="filePopup">
+        <div class="popup-content">
+            <h3>Upload File</h3>
+            <select id="userSelect">
+                <option value="">Select User</option>
+            </select>
+            <input type="file" id="fileInput" accept=".html">
+            <button id="uploadFileConfirmBtn">Upload</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
+        import { getDatabase, ref, set, push, onValue, update } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBQMke0SOMIq0rod6vOm4jrFJ4cExfJPNE",
+            authDomain: "ab-studio-4c309.firebaseapp.com",
+            databaseURL: "https://ab-studio-4c309-default-rtdb.firebaseio.com",
+            projectId: "ab-studio-4c309",
+            storageBucket: "ab-studio-4c309.appspot.com",
+            messagingSenderId: "290321392308",
+            appId: "1:290321392308:web:eed8f4bda17a51944eade1"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        const usersRef = ref(db, 'users');
+
+        const addUserBtn = document.getElementById('addUserBtn');
+        const uploadFileBtn = document.getElementById('uploadFileBtn');
+        const popup = document.getElementById('popup');
+        const filePopup = document.getElementById('filePopup');
+        const saveUserBtn = document.getElementById('saveUserBtn');
+        const uploadFileConfirmBtn = document.getElementById('uploadFileConfirmBtn');
+        const userNameInput = document.getElementById('userName');
+        const userImageInput = document.getElementById('userImage');
+        const initialScoreInput = document.getElementById('initialScore');
+        const fileInput = document.getElementById('fileInput');
+        const leaderboardList = document.getElementById('leaderboardList');
+        const userSelect = document.getElementById('userSelect');
+
+        function renderLeaderboard(users) {
+            leaderboardList.innerHTML = '';
+            userSelect.innerHTML = '<option value="">Select User</option>';
+
+            const sortedUsers = Object.entries(users || {}).sort((a, b) => b[1].score - a[1].score);
+            sortedUsers.forEach(([key, user]) => {
+                const item = document.createElement('div');
+                item.className = 'leaderboard-item';
+                item.innerHTML = `
+                    <div class="info">
+                        <img src="${user.image}" alt="${user.name}">
+                        <span>${user.name}</span>
+                    </div>
+                    <div class="score">${user.score.toFixed(2)}</div>
+                `;
+                leaderboardList.appendChild(item);
+
+                const option = document.createElement('option');
+                option.value = key;
+                option.textContent = user.name;
+                userSelect.appendChild(option);
+            });
+        }
+
+        function addUser(name, image, score) {
+            const newUserRef = push(usersRef);
+            set(newUserRef, { name, image, score });
+        }
+
+        function updateUserScore(userId, scoreToAdd) {
+            const userRef = ref(db, `users/${userId}`);
+            onValue(userRef, (snapshot) => {
+                const user = snapshot.val();
+                if (user) {
+                    update(userRef, { score: user.score + scoreToAdd });
+                }
+            }, { onlyOnce: true });
+        }
+
+        addUserBtn.addEventListener('click', () => {
+            popup.style.display = 'flex';
+        });
+
+        saveUserBtn.addEventListener('click', () => {
+            const name = userNameInput.value;
+            const image = userImageInput.value;
+            const score = parseFloat(initialScoreInput.value) || 0;
+
+            if (name && image) {
+                addUser(name, image, score);
+                popup.style.display = 'none';
+                userNameInput.value = '';
+                userImageInput.value = '';
+                initialScoreInput.value = '';
+            } else {
+                alert('Please provide both name and image!');
+            }
+        });
+
+        uploadFileBtn.addEventListener('click', () => {
+            filePopup.style.display = 'flex';
+        });
+
+        uploadFileConfirmBtn.addEventListener('click', () => {
+            const userId = userSelect.value;
+            const file = fileInput.files[0];
+
+            if (userId && file) {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const fileContent = reader.result;
+                    const lineCount = fileContent.split('\n').length;
+                    updateUserScore(userId, lineCount * 0.01);
+                };
+                reader.readAsText(file);
+
+                filePopup.style.display = 'none';
+                fileInput.value = '';
+            } else {
+                alert('Please select a user and a file!');
+            }
+        });
+
+        popup.addEventListener('click', (e) => {
+            if (e.target === popup) {
+                popup.style.display = 'none';
+            }
+        });
+
+        filePopup.addEventListener('click', (e) => {
+            if (e.target === filePopup) {
+                filePopup.style.display = 'none';
+            }
+        });
+
+        onValue(usersRef, (snapshot) => {
+            renderLeaderboard(snapshot.val());
+        });
+    </script>
+</body>
+</html>
